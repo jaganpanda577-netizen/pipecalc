@@ -9,38 +9,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<style>
-:root{--bg:#f3f5f9;--card:#fff;--tx:#151a27;--mut:#66708a;--ac:#2563eb;--ln:#dde2ee;--in:#f3f5f9;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10131b;--card:#1a1e2a;--tx:#eaedf6;--mut:#8d96ae;--ac:#6ea0ff;--ln:#2b3043;--in:#10131b}}
-:root[data-theme="dark"]{--bg:#10131b;--card:#1a1e2a;--tx:#eaedf6;--mut:#8d96ae;--ac:#6ea0ff;--ln:#2b3043;--in:#10131b}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:560px;margin:0 auto;padding:12px}
-h1{font-size:19px;margin:4px 4px 10px}
-.tabs{display:flex;gap:6px;background:var(--card);padding:4px;border-radius:14px;margin-bottom:12px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
-.tabs button{flex:1;border:0;background:none;color:var(--mut);padding:10px 4px;border-radius:10px;font-size:15px;font-weight:600}
-.tabs button.on{background:var(--ac);color:#fff}
-.card{background:var(--card);border-radius:16px;padding:12px 14px;margin-bottom:12px}
-.card h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin:0 0 6px}
-.hide{display:none}
-.fld{padding:8px 0;border-top:1px solid var(--ln)}
-.fld:first-of-type{border-top:0}
-.top{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.top span{font-size:14px}.top small{color:var(--mut)}
-.top input{width:110px;padding:7px 8px;border-radius:8px;border:1px solid var(--ln);background:var(--in);color:var(--tx);font-size:15px;text-align:right}
-input[type=range]{width:100%;margin:8px 0 0;accent-color:var(--ac)}
-.row{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid var(--ln);gap:10px}
-.row:first-of-type{border-top:0}
-.row b{text-align:right;word-break:break-all}
-.row span{color:var(--mut)}
-.badge{display:inline-block;padding:3px 10px;border-radius:99px;font-size:13px;font-weight:700;background:var(--ac);color:#fff;margin-bottom:6px}
-.msg{padding:10px;border-radius:10px;background:var(--in);font-size:14px;margin-top:8px}
-.err{color:#d64545;font-weight:600}
-canvas{width:100%;height:380px;display:block;border-radius:10px;background:var(--in)}
-.lg{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:10px;font-size:12px;color:var(--mut)}
-.lg i{display:inline-block;width:14px;height:3px;margin-right:5px;vertical-align:middle}
-</style>
+<link rel="stylesheet" href="styles.css">
 </head>
 <body>
 <div class="wrap">
@@ -50,93 +19,6 @@ canvas{width:100%;height:380px;display:block;border-radius:10px;background:var(-
 <div id="p1" class="hide"></div>
 <div id="p2" class="hide"><div class="card"><canvas id="cv"></canvas><div class="lg" id="lg"></div></div></div>
 </div>
-<script>
-const G=9.81;
-const groups=[
-['Fluid',[['rho','Fluid density','kg/m³',500,2000,10,1000],['mu','Dynamic viscosity','Pa·s',1e-4,.1,1e-5,.001]]],
-['Pipe',[['D','Pipe diameter','m',.01,1,.01,.1],['L','Pipe length','m',10,1000,10,100],['eps','Pipe roughness ε','m',1e-6,5e-4,1e-6,4.5e-5],['K','Total minor loss coeff. K','',0,20,.1,0]]],
-['Inlet (1)',[['P1','Pressure','Pa',0,1e7,1e4,101325],['V1','Velocity','m/s',.1,20,.1,1],['Z1','Height','m',-10,100,1,0]]],
-['Outlet (2)',[['P2','Pressure','Pa',0,1e7,1e4,101325],['V2','Velocity','m/s',.1,20,.1,1],['Z2','Height','m',-10,100,1,0]]],
-['Pump',[['eta','Pump efficiency (0–1)','',.1,1,.01,.7]]]];
-const S={};
-
-// Build inputs
-const p0=document.getElementById('p0');
-groups.forEach(([gt,items])=>{
-  const c=document.createElement('div');c.className='card';c.innerHTML='<h2>'+gt+'</h2>';
-  items.forEach(([id,lab,unit,mn,mx,st,val])=>{
-    S[id]=val;
-    const d=document.createElement('div');d.className='fld';
-    d.innerHTML='<div class="top"><span>'+lab+' <small>'+unit+'</small></span><input type="number" step="any" inputmode="decimal" id="n_'+id+'" value="'+val+'"></div><input type="range" id="r_'+id+'" min="'+mn+'" max="'+mx+'" step="'+st+'" value="'+val+'">';
-    c.appendChild(d);
-    const n=d.querySelector('#n_'+id),r=d.querySelector('#r_'+id);
-    r.oninput=()=>{n.value=+(+r.value).toPrecision(8);S[id]=+r.value;update()};
-    n.oninput=()=>{const v=parseFloat(n.value);if(Number.isFinite(v)){S[id]=v;r.value=v;update()}};
-  });
-  p0.appendChild(c);
-});
-
-// Physics (same as notebook)
-function friction(Re,rr){
-  if(Re<=2300)return 64/Re;
-  const e=Math.max(rr,1e-10);
-  return .25/Math.pow(Math.log10(e/3.7+5.74/Math.pow(Re,.9)),2);
-}
-function calc(){
-  const {rho,mu,D,L,eps,P1,P2,V1,V2,Z1,Z2,K,eta}=S;
-  if(!(D>0&&L>0&&rho>0&&mu>0&&eta>0))return null;
-  const Q=V1*Math.PI*Math.pow(D/2,2),Re=rho*V1*D/mu,rr=eps/D,f=friction(Re,rr);
-  const hMaj=f*(L/D)*V1*V1/(2*G),hMin=K*V1*V1/(2*G),hLoss=hMaj+hMin;
-  const hp=(P2-P1)/(rho*G)+(V2*V2-V1*V1)/(2*G)+(Z2-Z1)+hLoss;
-  const Pp=hp>0?rho*G*Q*hp/eta:0;
-  return {Q,Re,rr,f,hMaj,hMin,hLoss,hp,Pp};
-}
-
-// Results
-const p1=document.getElementById('p1');
-let R=null;
-function renderResults(){
-  if(!R){p1.innerHTML='<div class="card err">Error: D, L, ρ, μ and pump efficiency must all be positive.</div>';return}
-  const regime=R.Re<=2300?'Laminar':R.Re<=4000?'Transition':'Turbulent';
-  const rows=[['Volumetric flow rate Q',R.Q.toFixed(4)+' m³/s'],['Reynolds number Re',R.Re.toExponential(2)],['Relative roughness ε/D',R.rr.toFixed(6)],['Friction factor f',R.f.toFixed(6)],['Major head loss',R.hMaj.toFixed(4)+' m'],['Minor head loss',R.hMin.toFixed(4)+' m'],['Total head loss',R.hLoss.toFixed(4)+' m'],['Required pump head',R.hp.toFixed(4)+' m']];
-  p1.innerHTML='<div class="card"><h2>Results</h2><span class="badge">'+regime+' flow</span>'+rows.map(r=>'<div class="row"><span>'+r[0]+'</span><b>'+r[1]+'</b></div>').join('')+
-  '<div class="msg">'+(R.hp>0?'<b>Required pump power: '+R.Pp.toFixed(2)+' W</b> ('+(R.Pp/1000).toFixed(3)+' kW)':'No pump power required. Flow can occur naturally, or a turbine could be considered.')+'</div></div>';
-}
-
-// Moody diagram
-const cv=document.getElementById('cv');
-const eds=[0,1e-5,1e-4,1e-3,5e-3,1e-2,5e-2];
-const cols=eds.map((_,i)=>'hsl('+(i*47+200)%360+',70%,52%)');
-document.getElementById('lg').innerHTML='<span><i style="background:#888"></i>Laminar 64/Re</span>'+eds.map((e,i)=>'<span><i style="background:'+cols[i]+'"></i>e/D = '+e.toExponential(0)+'</span>').join('')+'<span><i style="background:#e11d48"></i>Your point</span>';
-function moody(){
-  if(!R)return;
-  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(!W)return;
-  cv.width=W*dpr;cv.height=H*dpr;const c=cv.getContext('2d');c.scale(dpr,dpr);
-  const cs=getComputedStyle(document.documentElement),ln=cs.getPropertyValue('--ln').trim(),mut=cs.getPropertyValue('--mut').trim();
-  const xa=Math.min(1e3,R.Re*.5),xb=Math.max(1e9,R.Re*2),ya=Math.min(.005,R.f*.5),yb=Math.max(.1,R.f*2);
-  const ml=44,mr=8,mt=8,mb=26,pw=W-ml-mr,ph=H-mt-mb;
-  const X=x=>ml+(Math.log10(x)-Math.log10(xa))/(Math.log10(xb)-Math.log10(xa))*pw;
-  const Y=y=>mt+ph-(Math.log10(y)-Math.log10(ya))/(Math.log10(yb)-Math.log10(ya))*ph;
-  c.font='10px system-ui';c.lineWidth=1;
-  for(let e=Math.floor(Math.log10(xa));e<=Math.ceil(Math.log10(xb));e++){const x=Math.pow(10,e);if(x<xa||x>xb)continue;c.strokeStyle=ln;c.beginPath();c.moveTo(X(x),mt);c.lineTo(X(x),mt+ph);c.stroke();c.fillStyle=mut;c.textAlign='center';c.fillText('1e'+e,X(x),H-10)}
-  for(let e=Math.floor(Math.log10(ya))-1;e<=Math.ceil(Math.log10(yb));e++)for(let m=1;m<10;m++){const y=m*Math.pow(10,e);if(y<ya||y>yb)continue;c.strokeStyle=ln;c.globalAlpha=m===1?1:.45;c.beginPath();c.moveTo(ml,Y(y));c.lineTo(ml+pw,Y(y));c.stroke();c.globalAlpha=1;if(m===1||m===2||m===5){c.fillStyle=mut;c.textAlign='right';c.fillText(+y.toPrecision(2),ml-4,Y(y)+3)}}
-  c.fillStyle=mut;c.textAlign='center';c.fillText('Reynolds number',ml+pw/2,H-0);
-  c.save();c.translate(10,mt+ph/2);c.rotate(-Math.PI/2);c.fillText('Friction factor f',0,0);c.restore();
-  c.save();c.beginPath();c.rect(ml,mt,pw,ph);c.clip();
-  const N=400,pts=[];for(let i=0;i<N;i++)pts.push(Math.pow(10,3+6*i/(N-1)));
-  c.strokeStyle='#888';c.setLineDash([5,4]);c.lineWidth=1.8;c.beginPath();let first=true;
-  pts.filter(r=>r<=2300).forEach(r=>{first?c.moveTo(X(r),Y(64/r)):c.lineTo(X(r),Y(64/r));first=false});c.stroke();c.setLineDash([]);
-  eds.forEach((e,i)=>{c.strokeStyle=cols[i];c.lineWidth=1.8;c.beginPath();pts.forEach((r,j)=>{const y=friction(r,e);j?c.lineTo(X(r),Y(y)):c.moveTo(X(r),Y(y))});c.stroke()});
-  c.fillStyle='#e11d48';c.beginPath();c.arc(X(R.Re),Y(R.f),6,0,7);c.fill();c.strokeStyle='#fff';c.lineWidth=1.5;c.stroke();
-  c.restore();
-}
-
-function update(){R=calc();renderResults();if(!document.getElementById('p2').classList.contains('hide'))moody()}
-const tabs=[0,1,2].map(i=>document.getElementById('b'+i)),pans=[0,1,2].map(i=>document.getElementById('p'+i));
-tabs.forEach((b,i)=>b.onclick=()=>{tabs.forEach((t,j)=>{t.className=j===i?'on':'';pans[j].classList.toggle('hide',j!==i)});if(i===2)moody();window.scrollTo(0,0)});
-window.addEventListener('resize',()=>{if(!pans[2].classList.contains('hide'))moody()});
-update();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-</script>
+<script src="script.js"></script>
 </body>
 </html>
