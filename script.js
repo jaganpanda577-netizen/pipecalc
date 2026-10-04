@@ -5,6 +5,170 @@
 // Gravity constant in m/s²
 const G = 9.81;
 
+// Unit metadata: each input field can be shown in several common units,
+// but the internal calculator state always stays in SI base units.
+const unitMeta = {
+  rho: {
+    defaultUnit: 'kg/m³',
+    minSI: 500,
+    maxSI: 2000,
+    stepSI: 10,
+    units: {
+      'kg/m³': { toSI: 1, fromSI: 1 },
+      'g/cm³': { toSI: 1000, fromSI: 1 / 1000 },
+      'lb/ft³': { toSI: 16.018463, fromSI: 1 / 16.018463 }
+    }
+  },
+  mu: {
+    defaultUnit: 'Pa·s',
+    minSI: 1e-4,
+    maxSI: 0.1,
+    stepSI: 1e-5,
+    units: {
+      'Pa·s': { toSI: 1, fromSI: 1 },
+      'cP': { toSI: 0.001, fromSI: 1000 },
+      'lb/(ft·s)': { toSI: 1.488164, fromSI: 1 / 1.488164 }
+    }
+  },
+  D: {
+    defaultUnit: 'm',
+    minSI: 0.01,
+    maxSI: 1,
+    stepSI: 0.01,
+    units: {
+      m: { toSI: 1, fromSI: 1 },
+      cm: { toSI: 0.01, fromSI: 100 },
+      mm: { toSI: 0.001, fromSI: 1000 },
+      in: { toSI: 0.0254, fromSI: 1 / 0.0254 },
+      ft: { toSI: 0.3048, fromSI: 1 / 0.3048 }
+    }
+  },
+  L: {
+    defaultUnit: 'm',
+    minSI: 10,
+    maxSI: 1000,
+    stepSI: 10,
+    units: {
+      m: { toSI: 1, fromSI: 1 },
+      cm: { toSI: 0.01, fromSI: 100 },
+      ft: { toSI: 0.3048, fromSI: 1 / 0.3048 },
+      km: { toSI: 1000, fromSI: 1 / 1000 }
+    }
+  },
+  eps: {
+    defaultUnit: 'm',
+    minSI: 1e-6,
+    maxSI: 5e-4,
+    stepSI: 1e-6,
+    units: {
+      m: { toSI: 1, fromSI: 1 },
+      mm: { toSI: 0.001, fromSI: 1000 },
+      'μm': { toSI: 1e-6, fromSI: 1e6 }
+    }
+  },
+  P1: {
+    defaultUnit: 'Pa',
+    minSI: 0,
+    maxSI: 1e7,
+    stepSI: 1e4,
+    units: {
+      Pa: { toSI: 1, fromSI: 1 },
+      kPa: { toSI: 1000, fromSI: 1 / 1000 },
+      bar: { toSI: 100000, fromSI: 1 / 100000 },
+      atm: { toSI: 101325, fromSI: 1 / 101325 },
+      psi: { toSI: 6894.76, fromSI: 1 / 6894.76 }
+    }
+  },
+  V1: {
+    defaultUnit: 'm/s',
+    minSI: 0.1,
+    maxSI: 20,
+    stepSI: 0.1,
+    units: {
+      'm/s': { toSI: 1, fromSI: 1 },
+      'cm/s': { toSI: 0.01, fromSI: 100 },
+      'ft/s': { toSI: 0.3048, fromSI: 1 / 0.3048 },
+      'km/h': { toSI: 0.2777777778, fromSI: 3.6 }
+    }
+  },
+  Z1: {
+    defaultUnit: 'm',
+    minSI: -10,
+    maxSI: 100,
+    stepSI: 1,
+    units: {
+      m: { toSI: 1, fromSI: 1 },
+      cm: { toSI: 0.01, fromSI: 100 },
+      ft: { toSI: 0.3048, fromSI: 1 / 0.3048 }
+    }
+  },
+  P2: {
+    defaultUnit: 'Pa',
+    minSI: 0,
+    maxSI: 1e7,
+    stepSI: 1e4,
+    units: {
+      Pa: { toSI: 1, fromSI: 1 },
+      kPa: { toSI: 1000, fromSI: 1 / 1000 },
+      bar: { toSI: 100000, fromSI: 1 / 100000 },
+      atm: { toSI: 101325, fromSI: 1 / 101325 },
+      psi: { toSI: 6894.76, fromSI: 1 / 6894.76 }
+    }
+  },
+  V2: {
+    defaultUnit: 'm/s',
+    minSI: 0.1,
+    maxSI: 20,
+    stepSI: 0.1,
+    units: {
+      'm/s': { toSI: 1, fromSI: 1 },
+      'cm/s': { toSI: 0.01, fromSI: 100 },
+      'ft/s': { toSI: 0.3048, fromSI: 1 / 0.3048 },
+      'km/h': { toSI: 0.2777777778, fromSI: 3.6 }
+    }
+  },
+  Z2: {
+    defaultUnit: 'm',
+    minSI: -10,
+    maxSI: 100,
+    stepSI: 1,
+    units: {
+      m: { toSI: 1, fromSI: 1 },
+      cm: { toSI: 0.01, fromSI: 100 },
+      ft: { toSI: 0.3048, fromSI: 1 / 0.3048 }
+    }
+  }
+};
+
+const selectedUnits = {};
+Object.keys(unitMeta).forEach(id => {
+  selectedUnits[id] = unitMeta[id].defaultUnit;
+});
+
+function toSI(value, id) {
+  const unit = selectedUnits[id];
+  const conversion = unitMeta[id].units[unit];
+  if (!conversion) return Number(value);
+  return Number(value) * conversion.toSI;
+}
+
+function fromSI(value, id) {
+  const unit = selectedUnits[id];
+  const conversion = unitMeta[id].units[unit];
+  if (!conversion) return Number(value);
+  return Number(value) * conversion.fromSI;
+}
+
+function getRangeLimits(id) {
+  const meta = unitMeta[id];
+  if (!meta) return { min: 0, max: 1, step: 1 };
+  return {
+    min: fromSI(meta.minSI, id),
+    max: fromSI(meta.maxSI, id),
+    step: fromSI(meta.stepSI, id)
+  };
+}
+
 // Each group holds a section of the calculator,
 // such as Fluid, Pipe, Inlet, Outlet, and Pump.
 // Each item: [id, label, unit, min, max, step, defaultValue]
@@ -34,7 +198,7 @@ const groups = [
   ]]
 ];
 
-// S stores all current input values by variable name.
+// S stores all current input values in SI units.
 // Example: S.rho = 1000, S.D = 0.1
 const S = {};
 
@@ -49,40 +213,75 @@ groups.forEach(([groupTitle, items]) => {
   card.innerHTML = '<h2>' + groupTitle + '</h2>';
 
   items.forEach(([id, label, unit, minVal, maxVal, stepVal, defaultVal]) => {
-    // Save the starting value in the state object
     S[id] = defaultVal;
 
     const field = document.createElement('div');
     field.className = 'fld';
 
-    // Create the label and number input plus slider
+    const unitOptions = unitMeta[id] ? Object.keys(unitMeta[id].units) : [];
+    const rangeLimits = getRangeLimits(id);
+    const displayValue = fromSI(S[id], id);
+
+    const unitSelectorHTML = unitOptions.length > 1
+      ? '<select class="unit-select" id="u_' + id + '">' +
+          unitOptions.map(u => '<option value="' + u + '"' + (selectedUnits[id] === u ? ' selected' : '') + '>' + u + '</option>').join('') +
+        '</select>'
+      : '<span class="unit-label">' + (unit || selectedUnits[id]) + '</span>';
+
     field.innerHTML =
       '<div class="top">' +
-      '<span>' + label + ' <small>' + unit + '</small></span>' +
-      '<input type="number" step="any" inputmode="decimal" id="n_' + id + '" value="' + defaultVal + '">' +
+      '<span>' + label + '</span>' +
+      '<div class="unit-input-group">' +
+      unitSelectorHTML +
+      '<input type="number" step="any" inputmode="decimal" id="n_' + id + '" value="' + Number(displayValue).toPrecision(8) + '">' +
       '</div>' +
-      '<input type="range" id="r_' + id + '" min="' + minVal + '" max="' + maxVal + '" step="' + stepVal + '" value="' + defaultVal + '">';
+      '</div>' +
+      '<input type="range" id="r_' + id + '" min="' + rangeLimits.min + '" max="' + rangeLimits.max + '" step="' + rangeLimits.step + '" value="' + displayValue + '">';
 
     card.appendChild(field);
 
     const numberInput = field.querySelector('#n_' + id);
     const rangeInput = field.querySelector('#r_' + id);
+    const unitSelect = field.querySelector('#u_' + id);
 
-    // When slider moves, update number box and state
+    const syncRange = () => {
+      const lim = getRangeLimits(id);
+      rangeInput.min = lim.min;
+      rangeInput.max = lim.max;
+      rangeInput.step = lim.step;
+      const v = fromSI(S[id], id);
+      rangeInput.value = v;
+      numberInput.value = Number(v).toPrecision(8);
+    };
+
+    if (unitSelect) {
+      unitSelect.onchange = () => {
+        selectedUnits[id] = unitSelect.value;
+        syncRange();
+        update();
+      };
+    }
+
     rangeInput.oninput = () => {
-      numberInput.value = +(+rangeInput.value).toPrecision(8);
-      S[id] = +rangeInput.value;
+      const v = Number(rangeInput.value);
+      if (!Number.isFinite(v)) return;
+      const lim = getRangeLimits(id);
+      const clamped = Math.min(lim.max, Math.max(lim.min, v));
+      rangeInput.value = clamped;
+      numberInput.value = Number(clamped).toPrecision(8);
+      S[id] = toSI(clamped, id);
       update();
     };
 
-    // When number box changes, update slider and state
     numberInput.oninput = () => {
       const v = parseFloat(numberInput.value);
-      if (Number.isFinite(v)) {
-        S[id] = v;
-        rangeInput.value = v;
-        update();
-      }
+      if (!Number.isFinite(v)) return;
+      const lim = getRangeLimits(id);
+      const clamped = Math.min(lim.max, Math.max(lim.min, v));
+      numberInput.value = clamped;
+      rangeInput.value = clamped;
+      S[id] = toSI(clamped, id);
+      update();
     };
   });
 
