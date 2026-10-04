@@ -137,6 +137,24 @@ const unitMeta = {
       cm: { toSI: 0.01, fromSI: 100 },
       ft: { toSI: 0.3048, fromSI: 1 / 0.3048 }
     }
+  },
+  K: {
+    defaultUnit: '',
+    minSI: 0,
+    maxSI: 20,
+    stepSI: 0.1,
+    units: {
+      '': { toSI: 1, fromSI: 1 }
+    }
+  },
+  eta: {
+    defaultUnit: '',
+    minSI: 0.1,
+    maxSI: 1,
+    stepSI: 0.01,
+    units: {
+      '': { toSI: 1, fromSI: 1 }
+    }
   }
 };
 
@@ -147,15 +165,17 @@ Object.keys(unitMeta).forEach(id => {
 
 function toSI(value, id) {
   const unit = selectedUnits[id];
-  const conversion = unitMeta[id].units[unit];
-  if (!conversion) return Number(value);
+  const meta = unitMeta[id];
+  if (!meta || !meta.units || !meta.units[unit]) return Number(value);
+  const conversion = meta.units[unit];
   return Number(value) * conversion.toSI;
 }
 
 function fromSI(value, id) {
   const unit = selectedUnits[id];
-  const conversion = unitMeta[id].units[unit];
-  if (!conversion) return Number(value);
+  const meta = unitMeta[id];
+  if (!meta || !meta.units || !meta.units[unit]) return Number(value);
+  const conversion = meta.units[unit];
   return Number(value) * conversion.fromSI;
 }
 
@@ -330,8 +350,8 @@ function calc() {
 
   // Pump head required from energy equation
   const hp = (P2 - P1) / (rho * G) +
-             (V2 * V2 - V1 * V1) / (2 * G) +
-             (Z2 - Z1) + hLoss;
+              (V2 * V2 - V1 * V1) / (2 * G) +
+              (Z2 - Z1) + hLoss;
 
   // Pump power required, assuming efficiency eta
   const Pp = hp > 0 ? rho * G * Q * hp / eta : 0;
